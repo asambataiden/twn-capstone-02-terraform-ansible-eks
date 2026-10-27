@@ -7,7 +7,6 @@ I assembled a unified Terraform and Ansible implementation for the TechWorld wit
 I learned how to separate infrastructure provisioning from application configuration; use Terraform modules, validated inputs and account protections; create Kubernetes namespaces and workloads idempotently with Ansible collections; handle kubeconfig and IAM credentials without committing them; validate Kubernetes readiness and service health; and evaluate security, repeatability and AWS operating costs. I also learned to distinguish checked-in IaC from successful live execution.
 
 ## GitHub URL
-Once the new repository is pushed, use:
-https://github.com/asambataiden/twn-capstone-02-terraform-ansible-eks
+**Public repository:** https://github.com/asambataiden/twn-capstone-02-terraform-ansible-eks
 
-**Important:** Confirm the URL exists and is accessible before submitting; it is a proposed destination until you create and push the repository.
+**Status:** The repository exists and source is committed. The live Terraform and Ansible deployment acceptance criteria remain unverified; do not submit as a successfully deployed solution until supported by real runtime evidence.

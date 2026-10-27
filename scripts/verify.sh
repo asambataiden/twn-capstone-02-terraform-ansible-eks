@@ -13,6 +13,6 @@ case "$CONTEXT" in
 esac
 kubectl -n "$NAMESPACE" get deployments,pods,services
 kubectl -n "$NAMESPACE" rollout status deployment/nginx-deployment --timeout=180s
-kubectl -n "$NAMESPACE" get deployment nginx-deployment -o jsonpath='{.spec.template.spec.containers[0].image}{"
-"}'
+kubectl -n "$NAMESPACE" get deployment nginx-deployment -o jsonpath='{.spec.template.spec.containers[0].image}'
+printf '\n'
 echo 'For HTTP smoke test, run: kubectl -n my-app port-forward svc/nginx-service 18080:80 and curl -fsS http://127.0.0.1:18080/'

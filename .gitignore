@@ -1,0 +1,21 @@
+# Terraform
+**/.terraform/
+**/terraform.tfstate*
+**/*.tfplan
+**/crash.log
+**/override.tf
+**/*_override.tf
+# Credentials and local output
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kubeconfig*
+!docs/kubeconfig-guidance.md
+*.retry
+.DS_Store
+.venv/
+__pycache__/
+**/terraform.tfvars
+ansible/vars.yml

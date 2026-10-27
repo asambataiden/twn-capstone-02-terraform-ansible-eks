@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (ignored if secret values are added); inspect estimated cost before any apply.
+aws_account_id = "REPLACE_WITH_YOUR_APPROVED_12_DIGIT_ACCOUNT"
+aws_region = "eu-north-1"
+cluster_name = "myapp-eks-cluster"
+public_access_cidrs = ["203.0.113.10/32"] # REPLACE with trusted operator egress IP/CIDR
+node_instance_types = ["t3.medium"]
+node_desired_size = 2

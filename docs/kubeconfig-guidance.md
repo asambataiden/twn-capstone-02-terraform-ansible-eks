@@ -1,0 +1,3 @@
+# Kubeconfig and identity controls
+
+Never commit kubeconfig, AWS keys, state files or saved plans. Verify the AWS account with `aws sts get-caller-identity`. After an **approved** Terraform provision, generate kubeconfig explicitly using `aws eks update-kubeconfig --name myapp-eks-cluster --region eu-north-1 --alias myapp-eks-cluster --kubeconfig "$HOME/.kube/capstone02"`. Export `KUBECONFIG` and inspect `kubectl config current-context` and `kubectl cluster-info` before Ansible. Production should use scoped roles and private or narrowed control-plane access. The Terraform cluster-creator admin access is a learning bootstrap exception, not a production recommendation.

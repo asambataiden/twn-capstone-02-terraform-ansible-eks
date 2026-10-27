@@ -1,0 +1,17 @@
+name: Static checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.4"
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive terraform
+      - name: Validate YAML parsing
+        run: ruby -e 'require "yaml"; Dir.glob("ansible/**/*.{yml,yaml}").reject { |f| f.include?("/templates/") }.each { |f| YAML.load_file(f); puts "OK #{f}" }'

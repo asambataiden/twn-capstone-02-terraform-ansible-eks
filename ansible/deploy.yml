@@ -1,0 +1,69 @@
+---
+- name: Deploy Nginx on the intended EKS cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  vars:
+    kubeconfig_file: "{{ lookup('env', 'KUBECONFIG') }}"
+  pre_tasks:
+    - name: Require explicit kubeconfig and vetted image
+      ansible.builtin.assert:
+        that:
+          - kubeconfig_file | length > 0
+          - cluster_name | length > 0
+          - namespace | length > 0
+          - "'@sha256:' in nginx_image"
+          - "'REPLACE_' not in nginx_image"
+        fail_msg: "Set KUBECONFIG and pin an approved image@sha256 digest in vars.yml."
+    - name: Read selected kubeconfig context
+      ansible.builtin.command:
+        argv: [kubectl, config, current-context]
+      environment:
+        KUBECONFIG: "{{ kubeconfig_file }}"
+      register: active_context
+      changed_when: false
+    - name: Check context matches cluster
+      ansible.builtin.assert:
+        that:
+          - cluster_name in active_context.stdout
+        fail_msg: "Selected kubeconfig context does not name the approved EKS cluster."
+    - name: Verify Kubernetes target before changes
+      kubernetes.core.k8s_cluster_info:
+        kubeconfig: "{{ kubeconfig_file }}"
+      register: cluster_info
+    - name: Require deliberate operator confirmation of target
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'CAP02_APPROVED_CLUSTER') == cluster_name
+        fail_msg: "Set CAP02_APPROVED_CLUSTER to the cluster_name only after verifying AWS identity and kubeconfig context."
+  tasks:
+    - name: Ensure application namespace exists
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_file }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ namespace }}"
+            labels:
+              app.kubernetes.io/part-of: capstone-02
+    - name: Apply namespaced Nginx manifest
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_file }}"
+        state: present
+        namespace: "{{ namespace }}"
+        definition: "{{ lookup('template', 'templates/nginx.yml.j2') | from_yaml_all | list }}"
+    - name: Wait for Nginx Deployment
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_file }}"
+        api_version: apps/v1
+        kind: Deployment
+        namespace: "{{ namespace }}"
+        name: nginx-deployment
+      register: deployment
+      until: deployment.resources | length > 0 and (deployment.resources[0].status.availableReplicas | default(0)) | int >= 1
+      retries: 30
+      delay: 10

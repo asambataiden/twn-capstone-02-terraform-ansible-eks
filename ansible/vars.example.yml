@@ -1,0 +1,5 @@
+namespace: my-app
+cluster_name: myapp-eks-cluster
+aws_region: eu-north-1
+# Images: pin a vetted immutable digest for real deployment. This example requires operator input.
+nginx_image: "REPLACE_WITH_APPROVED_NGINX_IMAGE_DIGEST"

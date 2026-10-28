@@ -22,6 +22,9 @@ It does not claim to have executed the original instructor exercise or reproduce
 ## Layout
 
 - `terraform/`: EKS, VPC and managed node group; pinned module versions, account guard, variable checks
+- `terraform/bootstrap-state/`: isolated protected S3 state-bucket configuration (not yet provisioned)
+- `terraform/backend.tf.example`: opt-in native S3 locking backend template (not activated)
+- `docs/terraform-state-and-deployment.md`: pre-apply gate, backend bootstrap/state recovery and teardown guide
 - `ansible/`: namespace and templated Nginx Deployment/ClusterIP Service
 - `scripts/verify.sh`: identity checks, workload rollout and image inspection
 - `docs/bootcamp-submission.md`: required questions and answers
@@ -47,7 +50,7 @@ terraform plan -input=false -out=review.tfplan  # inspect sensitive saved plan a
 terraform show review.tfplan
 ```
 
-`terraform init` resolves modules/plugins; lock provider selections and commit only a reviewed `.terraform.lock.hcl` generated in your environment. Saved plans/state must remain private. **Do not apply until reviewed.** For team use, configure a protected remote backend rather than relying on the default local state; this repository intentionally does not point to the unrelated Capstone 01 state bucket.
+`terraform init` resolves modules/plugins; lock provider selections and commit only a reviewed `.terraform.lock.hcl` generated in your environment. Saved plans/state must remain private. **Do not apply until reviewed.** **Before the first workload apply**, follow [the backend bootstrap and migration runbook](docs/terraform-state-and-deployment.md). Its dedicated S3 bucket is not yet provisioned, and the sample backend is not yet activated. The existing Capstone 01 state bucket must not be reused.
 
 ## 2 — Deploy only to an approved created cluster
 

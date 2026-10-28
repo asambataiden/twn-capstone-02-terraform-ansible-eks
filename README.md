@@ -105,3 +105,26 @@ kubectl -n my-app port-forward svc/nginx-service 18080:80
 - Dependency versions and runtime compatibility must be checked against the actual Terraform/Ansible/Kubernetes tools before execution.
 
 **Bootcamp submission:** [what I built, what I learned, and repository URL](docs/bootcamp-submission.md).
+
+
+## Ansible controller compatibility (macOS, October 2026)
+
+Use Python **3.14** with `ansible-core>=2.21,<2.22`. Python 3.15 is not supported by Ansible Core 2.21, and Core 2.19 supports only Python 3.11–3.13 on the control node. Using Python 3.15 with Core 2.19 can fail at startup with `AttributeError: module 'dataclasses' has no attribute '_is_type'`.
+
+From `ansible/`:
+
+```bash
+deactivate 2>/dev/null || true
+command -v python3.14 || brew install python@3.14
+rm -rf .venv
+python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install "ansible-core>=2.21,<2.22" -r requirements.txt
+ansible-galaxy collection install -r requirements.yml
+python --version
+ansible-playbook --version
+ansible-playbook -i localhost, --syntax-check deploy.yml
+```
+
+**Note:** These commands recreate only the ignored local virtual environment. The existing local `vars.yml` must use `k8s_namespace: my-app`. Syntax checking does not deploy anything to AWS or Kubernetes.

@@ -23,3 +23,6 @@ ansible/vars.yml
 # JetBrains / IntelliJ IDEA workspace files
 .idea/
 *.iml
+
+# Private AWS verification evidence
+/evidence/verification.txt

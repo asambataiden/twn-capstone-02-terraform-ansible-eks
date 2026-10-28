@@ -19,7 +19,7 @@ variable "cluster_name" {
 
 variable "kubernetes_version" {
   type    = string
-  default = "1.33"
+  default = "1.35"
 }
 
 variable "vpc_cidr" {

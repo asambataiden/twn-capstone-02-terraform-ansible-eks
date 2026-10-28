@@ -99,3 +99,44 @@ Some resources, notably KMS keys, can have delayed deletion schedules. Teardown 
 This is a controlled learning environment, not a production baseline. IAM admin access for the operator is a lab exception; prefer federation and least privilege. The node security group permits broad egress. The standard Nginx image is not fully non-root/read-only-rootfs hardened. Cost control remains important: EKS, EC2, NAT, public IPv4, KMS and logs can incur charges.
 
 Keep the S3 backend and its bootstrap state isolated so the infrastructure can be audited without adopting or accidentally changing other project resources.
+
+## Verified Decommissioning — 28 October 2026
+
+The Terraform-managed Capstone 02 environment was successfully
+decommissioned after application validation and evidence collection.
+
+| Verification | Result |
+|---|---|
+| Destroy plan | 0 add, 0 change, 58 destroy |
+| Terraform apply | 58 destroyed, 0 failures |
+| Remaining managed resources | 0 |
+| EKS cluster | Confirmed absent |
+| Dedicated VPC | Confirmed absent |
+| Managed node group | Destroyed |
+| NAT Gateway | Destroyed |
+| KMS key | PendingDeletion |
+| KMS scheduled deletion | 27 November 2026 |
+| S3 state backend | Retained separately |
+
+### Scope and ownership
+
+The destroy plan targeted the resources managed by the
+Capstone 02 Terraform workload root, including the dedicated
+EKS cluster and VPC.
+
+The separate Terraform state backend was outside that root.
+Capstone 01 infrastructure was not included in the destroy plan.
+
+### Recovery and reproducibility
+
+The infrastructure can be recreated using the version-controlled
+Terraform and Ansible configuration, provided that all prerequisite
+AWS permissions, state-backend configuration, variables, dependencies,
+and resource quotas are validated again.
+
+Recreation is not an automatic rollback: a new deployment may
+produce different physical resource IDs.
+
+### Evidence
+
+See [Infrastructure cleanup evidence](../evidence/cleanup-public.md).

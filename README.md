@@ -170,3 +170,35 @@ See [Capstone 02 submission questions, answers and detailed learning outcomes](d
 - [Original Ansible Kubernetes learning branch](https://github.com/asambataiden/twn-devops-bootcamp-15-ansible-deploy-node-app/tree/feature/project-14-ansible-inventory-deploy-to-eks-k8s)
 
 This repository documents the independently verified consolidated Capstone 02 deployment on 28 October 2026.
+
+## Final Project Status — 28 October 2026
+
+**Status: Completed, verified and decommissioned.**
+
+The project successfully completed the full infrastructure lifecycle:
+
+1. Provisioned a dedicated AWS VPC and Amazon EKS cluster with Terraform.
+2. Verified two managed Kubernetes worker nodes were Ready.
+3. Deployed Nginx into the `my-app` namespace using Ansible.
+4. Validated the Nginx Deployment and ClusterIP Service.
+5. Confirmed an HTTP `200 OK` response through port-forwarding.
+6. Verified the immutable Nginx image was compatible with `linux/amd64`.
+7. Confirmed Ansible idempotency: `ok=8`, `changed=0`, `failed=0`.
+8. Reviewed and executed a scoped Terraform destroy plan.
+9. Successfully destroyed all 58 Terraform-managed resources.
+10. Verified that the Capstone 02 EKS cluster and VPC no longer existed.
+
+### Decommissioning notes
+
+- The project-specific AWS KMS key entered `PendingDeletion`.
+- Its scheduled deletion date is 27 November 2026.
+- The separately managed S3 Terraform state backend was retained.
+- Capstone 01 was not targeted by the Capstone 02 destroy plan.
+
+The documented runtime evidence represents the application before
+decommissioning. The EKS cluster is no longer running.
+
+### Evidence
+
+- [Runtime verification](evidence/verification-public.txt)
+- [Infrastructure cleanup](evidence/cleanup-public.md)

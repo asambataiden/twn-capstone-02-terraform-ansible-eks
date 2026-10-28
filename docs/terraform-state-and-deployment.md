@@ -1,66 +1,101 @@
-# Capstone 02 — Terraform state and deployment decision gate
+# Capstone 02 — Terraform remote state, deployment and cleanup runbook
 
-## Scope
+**Verified state:** Infrastructure was deployed and validated on 28 October 2026. **Teardown has not been performed or verified.**
 
-This project provisions a **new** VPC and EKS cluster via Terraform, then uses Ansible to create the `my-app` namespace and deploy Nginx. It does not reuse or adopt Capstone 01 state or infrastructure.
+## 1. Resource boundaries
 
-## Pre-deployment prerequisites
+This Terraform root owns the separate Capstone 02 VPC and EKS stack in `eu-north-1`:
 
-- Explicitly approve the AWS account, selected region, name, VPC CIDRs, EKS endpoint access and an estimated total cost.
-- Confirm no conflicting cluster, VPC or state bucket already exists.
-- Use a scoped AWS role/principal for provisioning where available. The currently configured cluster-creator admin access is a **lab bootstrap exception**, not a production security baseline.
-- Choose how to manage backend bootstrap state: the bootstrap Terraform root initially uses **local state**. Store a securely encrypted backup outside Git, test its recovery and do not lose it.
-- Verify the S3 state bucket's separate access policy/role before allowing broader team access. Default bucket account permissions alone do not establish least privilege.
+- EKS: `myapp-eks-cluster`
+- VPC: `vpc-00377eeb38dd4ae1c`
+- Tag marker: `Project=twn-capstone-02`
+- AWS account observed during deployment: `591132357918`
 
-## Step A — Optional planned bootstrap (creates billable/persistent S3 resources)
+**Never treat the Capstone 01 EKS cluster `floral-mongoose-1792497995`, its VPC, any unrelated VPC or other bootcamp environments as part of this root.**
 
-Only with explicit approval:
+## 2. State backend ownership
 
-```bash
-cd terraform/bootstrap-state
-export AWS_PROFILE=YOUR_APPROVED_PROFILE
-terraform init
-terraform fmt -check
-terraform validate
-terraform plan -var='aws_account_id=REPLACE_WITH_APPROVED_ACCOUNT'
-# Review, then apply only the approved plan.
+The primary Terraform root uses a dedicated S3 remote backend with native locking:
+
+```text
+Bucket: twn-capstone02-tfstate-591132357918-eu-north-1
+Key:    capstone02/eks/terraform.tfstate
+Region: eu-north-1
+Lock:   use_lockfile = true
 ```
 
-This root declares a unique bucket, encryption at rest (SSE-S3), versioning, public-access blocking, bucket-owner-enforced object ownership and HTTPS-only access. It has `prevent_destroy` for the bucket. **This is not yet a completed bootstrap**.
+The separately created `terraform/bootstrap-state/` Terraform root owns the backend bucket and has its **own bootstrap state**. The bucket's controls were validated: versioning, default encryption, block public access and HTTPS-only access. Do not delete the bucket or bootstrap root when destroying the EKS workload.
 
-## Step B — Activate workload remote state
+The bootstrap state's secure backup remains an operator task unless separately evidenced. Do not put state snapshots or saved Terraform plans in Git.
 
-Only when bucket existence, controls, access and bootstrap-state backup are verified:
+## 3. What happened during provisioning
 
-1. Copy `terraform/backend.tf.example` to `terraform/backend.tf`; replace the bucket placeholder and review region/key.
-2. From `terraform/`, run `terraform init -reconfigure` if no workload state exists. If workload state already exists, use a deliberate `terraform init -migrate-state` workflow instead and back it up first.
-3. Verify `terraform state list` targets the intended backend and run `terraform plan` with explicitly reviewed variables.
-4. Do not create two competing sources of truth for state. Avoid sharing any Capstone 01 backend key.
+1. Initial Terraform validation passed, but `terraform apply` hit AWS regional `VpcLimitExceeded` at five existing VPCs.
+2. Terraform correctly recorded 11 supporting resources created before the failed VPC operation.
+3. A quota increase to six VPCs became effective; no existing VPC was deleted.
+4. A refreshed plan showed `47 to add, 0 to change, 0 to destroy`.
+5. Recovery apply completed with `47 added, 0 changed, 0 destroyed`.
+6. AWS CLI confirmed EKS `ACTIVE`, managed node group `ACTIVE` and two healthy workers.
+7. A subsequent Terraform `-detailed-exitcode` plan returned `0`: **No changes**.
+8. Nginx deployment was then applied by Ansible and validated separately; the application remains outside the Terraform root's resource ownership.
 
-S3's native `use_lockfile=true` supports Terraform locking without a DynamoDB table; enable bucket versioning for recovery. Backend access requires state-object read/write and lockfile read/write/delete, plus restricted bucket listing. Use least-privilege IAM in the actual AWS account.
+This illustrates safe partial-apply recovery: preserve state, resolve the underlying quota, review the revised plan and apply only intended remaining objects.
 
-## Step C — Review application plan and runtime validation
+## 4. Preflight checks before any future Terraform action
 
-The primary Terraform root has already passed `terraform validate` locally, as has Ansible's syntax check. These do **not** prove that the plan is safe or that AWS will accept all resources.
+Run from the **repository's `terraform/` directory**; never from its parent directory:
 
-- `terraform plan`: review proposed resource count, IAM privileges, costs, VPC/subnet/AZ suitability, EKS add-on/node capacity and endpoint CIDRs.
-- `terraform apply`: only after explicitly approving plan, costs, state ownership, expected resource lifetime and teardown.
-- `ansible-playbook`: only after selecting the exact intended cluster, pinning an approved Nginx digest and verifying the execution context.
-- `scripts/verify.sh`: capture namespace, rollout and HTTP evidence; confirm the digest deployed matches the selected artifact.
-- Cleanup: after assessment, plan approved teardown; retain state and audit evidence. Do not destroy resources shared with other capstones.
+```bash
+export AWS_PROFILE=asambataiden-dev
+export AWS_REGION=eu-north-1
+aws sts get-caller-identity
+pwd
+ls -1 *.tf
+terraform init
+terraform workspace show
+terraform state list
+terraform plan -input=false -detailed-exitcode
+printf 'Terraform exit code: %s\n' "$?"
+```
 
-## Explicitly deferred as outside this learning assignment
+For drift checks, exit code `0` means no changes, `2` means changes require review and `1` means an error. Do not mistake a DNS failure or running from the wrong directory for a real drift assessment. Review the backend configuration and state resource list before any mutation.
 
-Full multi-account landing zone, GitOps, Vault, service mesh, organization-wide policy and multi-environment HA clusters. These belong in a separate platform project.
+## 5. Preserving submission evidence
 
-## Verified progress — 28 October 2026
+Store reviewed, redacted proof of:
 
-- Bootstrap applied: six AWS S3 resources created, zero changed and zero destroyed.
-- Bootstrap follow-up Terraform plan: no changes.
-- S3 bucket versioning enabled; AES256 default encryption, four public-access safeguards, HTTPS-only deny policy verified.
-- Main Terraform root initialized successfully with the dedicated S3 backend and native locking configured.
-- Main Terraform formatting and validation passed; S3 bucket access verified in eu-north-1.
-- Main root has no Terraform state yet because EKS resources have not been created.
-- Pending: secure external backup of bootstrap local state, commit/review active backend.tf, Terraform plan and cost/security review.
+- Terraform apply completion and clean drift result;
+- EKS and managed node group ACTIVE, two nodes Ready;
+- Ansible success recap and unchanged rerun (`changed=0`);
+- Pod/Deployment readiness, ClusterIP Service and port-forwarded HTTP 200;
+- Image digest and verified `linux/amd64` platform.
 
-These are operator-provided CLI observations. Do not interpret them as evidence of a deployed EKS cluster.
+Keep raw logs containing account numbers, personal IAM principal names, endpoints or infrastructure identifiers private unless reviewed for publication. Evidence creation does not imply successful teardown.
+
+## 6. Safe workload teardown (future action; requires deliberate approval)
+
+Stop the port-forward and complete all evidence collection first. Ansible-created Kubernetes resources may be removed along with the cluster, but record their status beforehand.
+
+```bash
+export AWS_PROFILE=asambataiden-dev
+export AWS_REGION=eu-north-1
+cd terraform
+aws sts get-caller-identity
+terraform init
+terraform workspace show
+terraform state list
+terraform plan -destroy -input=false -out=cap02-destroy.tfplan
+terraform show cap02-destroy.tfplan
+```
+
+**Mandatory manual review:** The planned deletions must belong only to the Capstone 02 Terraform root; confirm the AWS account and backend key. In particular, **the Capstone 01 cluster and its VPC must not appear in the plan**. The state bucket created by `bootstrap-state/` is outside this stack and must also remain untouched. If any resource ownership is ambiguous, do not proceed.
+
+Once the destroy plan is reviewed and explicitly approved, the authorized operator may run `terraform apply cap02-destroy.tfplan`. This command is intentionally **not** represented as already executed. Then verify the target EKS cluster, VPC, NAT and EC2 nodes were removed and record any remaining billable resources, state retention, and final Terraform state. Saved plan files must be kept out of Git.
+
+Some resources, notably KMS keys, can have delayed deletion schedules. Teardown verification must consider such asynchronous lifecycle behavior rather than treating an apply recap as proof every charge stopped immediately.
+
+## 7. Operational risks and production differences
+
+This is a controlled learning environment, not a production baseline. IAM admin access for the operator is a lab exception; prefer federation and least privilege. The node security group permits broad egress. The standard Nginx image is not fully non-root/read-only-rootfs hardened. Cost control remains important: EKS, EC2, NAT, public IPv4, KMS and logs can incur charges.
+
+Keep the S3 backend and its bootstrap state isolated so the infrastructure can be audited without adopting or accidentally changing other project resources.

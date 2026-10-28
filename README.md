@@ -1,134 +1,172 @@
 # Capstone 02 — Automate Kubernetes Deployment with Terraform & Ansible
 
-**TechWorld with Nana · DevOps Bootcamp · Capstone 02**
+**TechWorld with Nana · AI-Enhanced DevOps Bootcamp · Capstone 02**
+**Implementation verified:** 28 October 2026 · **Status:** End-to-end deployment and repeatability verified; teardown still pending.
 
-> **State:** Consolidated implementation created from existing course project patterns; **not yet deployed or live-validated**. Do not interpret committed source as proof of AWS resources, Kubernetes health, or a passed end-to-end project.
+> This project is a portfolio consolidation and security-focused extension of earlier course exercises. The live validation below comes from a new, dedicated EKS deployment; it does not claim that the original course branches were independently redeployed.
+
+## Project objective
+
+Automate creation of a dedicated Amazon EKS environment with Terraform and deploy an Nginx web server into a new Kubernetes namespace using Ansible. Validate infrastructure, application availability, service access and automation idempotency.
 
 ## Architecture
 
-`Terraform → VPC (public/private subnets, NAT) → Amazon EKS + managed nodes → kubeconfig → Ansible → Kubernetes Namespace (my-app) → Nginx Deployment → ClusterIP Service`
+```text
+Developer Mac (AWS CLI + Terraform + Ansible)
+   │
+   ├── Terraform → protected S3 remote state + native lockfile
+   │                 └── AWS eu-north-1
+   │                      └── Capstone 02 VPC (10.42.0.0/16)
+   │                           ├── 2 public subnets + Internet Gateway
+   │                           ├── 2 private subnets + NAT Gateway
+   │                           └── EKS myapp-eks-cluster (Kubernetes 1.35)
+   │                                 └── managed node group: 2 × t3.medium
+   │
+   └── Dedicated kubeconfig → Ansible (localhost controller)
+                                └── namespace my-app
+                                     ├── Nginx Deployment (1 replica)
+                                     └── nginx-service (ClusterIP :80)
+                                           └── local port-forward :18080 → HTTP 200
+```
 
-**Requirement alignment:** Terraform defines a new EKS cluster; Ansible creates a new namespace and deploys an application to it. Unlike the historical demo, this implementation uses a private-internal service by default. Use `kubectl port-forward` to smoke-test without incurring a public LoadBalancer charge.
+All cloud resources created for this capstone are logically separated from the existing Capstone 01 EKS cluster. The application Service remains internal; smoke testing uses port-forwarding rather than a public load balancer.
 
-## Source attribution
+## Verified runtime results (28 October 2026)
 
-This repository is a consolidated, security-improved implementation based on my earlier exercises:
+| Control | Observed result |
+|---|---|
+| AWS region | `eu-north-1` |
+| EKS cluster | `myapp-eks-cluster` — `ACTIVE` |
+| Kubernetes API | `v1.35.9-eks-577a51e` |
+| VPC ID | `vpc-00377eeb38dd4ae1c` |
+| Managed nodes | 2 × `t3.medium`, both `Ready` |
+| Terraform recovery apply | `47 added, 0 changed, 0 destroyed` (after 11 resources from initial partial apply were already tracked) |
+| Terraform drift detection | `No changes`; `-detailed-exitcode` returned `0` |
+| Namespace | `my-app` |
+| Ansible initial successful deployment | `ok=8 changed=1 failed=0` |
+| Nginx rollout | Deployment `1/1` available; Pod `1/1 Running`, 0 restarts |
+| Internal Service | `nginx-service`, `ClusterIP`, port `80` |
+| Application smoke test | `curl -fsSI http://127.0.0.1:18080/` → `HTTP/1.1 200 OK` (`nginx/1.28.3`) |
+| Ansible repeat run | `ok=8 changed=0 unreachable=0 failed=0` |
+| Final image platform | `linux/amd64` confirmed by registry and local Docker inspect |
 
-- [Original Terraform EKS branch](https://github.com/asambataiden/twn-devops-bootcamp-12-terraform-terraform-learn/tree/feature/project-14-ansible-eks-k8s-deploy-to-eks-with-terraform)
-- [Original Ansible Kubernetes branch](https://github.com/asambataiden/twn-devops-bootcamp-15-ansible-deploy-node-app/tree/feature/project-14-ansible-inventory-deploy-to-eks-k8s)
+**Approved immutable image:**
 
-It does not claim to have executed the original instructor exercise or reproduced past run evidence in this new repository.
+```text
+nginx@sha256:6ee8a60426eecd547e15e956742947935ccc66f39811c6ab161d98c6ba6ac148
+```
 
-## Layout
+This is a platform-specific OCI manifest verified as `linux/amd64`, matching the EKS nodes. The digest identifies the exact deployed artifact; evaluate current security updates before reusing it in any future deployment.
 
-- `terraform/`: EKS, VPC and managed node group; pinned module versions, account guard, variable checks
-- `terraform/bootstrap-state/`: isolated protected S3 state-bucket configuration (not yet provisioned)
-- `terraform/backend.tf.example`: opt-in native S3 locking backend template (not activated)
-- `docs/terraform-state-and-deployment.md`: pre-apply gate, backend bootstrap/state recovery and teardown guide
-- `ansible/`: namespace and templated Nginx Deployment/ClusterIP Service
-- `scripts/verify.sh`: identity checks, workload rollout and image inspection
-- `docs/bootcamp-submission.md`: required questions and answers
-- `docs/kubeconfig-guidance.md`: safe cluster authentication procedure
-- `.github/workflows/static-checks.yml`: lightweight static checks; **not** cloud integration tests
+## Repository structure
 
-## Prerequisites and cost warning
+- `terraform/` — VPC, EKS, managed node group, providers, variable validation, backend and outputs.
+- `terraform/bootstrap-state/` — separate remote-state bucket bootstrap. Its initial local state must be backed up securely and never committed.
+- `ansible/` — idempotent namespace, Nginx Deployment and ClusterIP Service, with template and dependency definitions.
+- `scripts/verify.sh` — cluster identity, rollout, resource and image checks.
+- `docs/terraform-state-and-deployment.md` — backend ownership, deployment validation, risks and teardown safeguards.
+- `docs/kubeconfig-guidance.md` — dedicated kubeconfig and identity validation.
+- `docs/bootcamp-submission.md` — project answers, troubleshooting and **What I Learned**.
+- `.github/workflows/static-checks.yml` — static validation; not proof of live AWS integration.
 
-Terraform >= 1.5.7; AWS provider 6.x and approved AWS profile, Ansible, `kubernetes.core` collection, Python Kubernetes dependencies, AWS CLI v2, kubectl. EKS, NAT gateway, EC2 nodes and network transfer **incur charges**. No Terraform `apply`, Ansible Kubernetes mutation or `destroy` should occur without approving cost, scope and rollback. The original Capstone 01 cluster is a different environment and is **not** substituted here.
+## Requirements and tooling
 
-## 1 — Inspect and validate before deployment
+Terraform, AWS CLI v2, a scoped AWS identity, Python, `ansible-core`, `kubernetes.core`, the Python Kubernetes client, `kubectl`, Docker Buildx and `jq`.
+
+**Tools observed during validation:** Terraform configuration validated; Kubernetes 1.35.9 API and separately installed `kubectl` v1.35.9; Python 3.14.8; Ansible Core 2.21.5; `kubernetes.core` 6.6.0.
+
+Never commit secrets, kubeconfig files, live `terraform.tfvars`, `.tfstate`, `.tfplan`, private bootstrap state or raw logs containing sensitive identifiers.
+
+## Reproduce safely
+
+### 1. Provision infrastructure (only with AWS cost and scope approval)
 
 ```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit account ID, trusted CIDRs, node sizing, region and cost assumptions
-export AWS_PROFILE=YOUR_APPROVED_PROFILE
+export AWS_PROFILE=asambataiden-dev
+export AWS_REGION=eu-north-1
 aws sts get-caller-identity
+
+cd terraform
+# Review current backend.tf and terraform.tfvars for your own account,
+# trusted public-access CIDR, region, cost and state ownership.
 terraform init
 terraform fmt -check -recursive
 terraform validate
-terraform plan -input=false -out=review.tfplan  # inspect sensitive saved plan and cost impact
+terraform plan -input=false -out=review.tfplan
 terraform show review.tfplan
+# Explicitly approve the plan before: terraform apply review.tfplan
 ```
 
-`terraform init` resolves modules/plugins; lock provider selections and commit only a reviewed `.terraform.lock.hcl` generated in your environment. Saved plans/state must remain private. **Do not apply until reviewed.** **Before the first workload apply**, follow [the backend bootstrap and migration runbook](docs/terraform-state-and-deployment.md). Its dedicated S3 bucket is not yet provisioned, and the sample backend is not yet activated. The existing Capstone 01 state bucket must not be reused.
+The existing deployment uses a dedicated S3 backend and locking. **Do not create a second backend or apply a new VPC merely to reproduce the portfolio.** For a new environment, first establish unique state, names and approved quotas. VPC quotas and EKS/EC2/NAT charges matter.
 
-## 2 — Deploy only to an approved created cluster
-
-Once an authorized operator has provisioned the intended EKS cluster and verified the exact AWS account, generate a dedicated kubeconfig as described in [kubeconfig guide](docs/kubeconfig-guidance.md). Then:
+### 2. Select the intended cluster without touching other kubeconfig contexts
 
 ```bash
-cd ansible
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-ansible-galaxy collection install -r requirements.yml
-cp vars.example.yml vars.yml
-# Ensure vars.yml uses k8s_namespace (not reserved 'namespace').
-# Use the ansible-playbook executable from the intended Python environment.
-# Pin the Nginx image to a reviewed image@sha256 digest and edit vars.yml
-export KUBECONFIG="$HOME/.kube/capstone02"
+export KUBECONFIG="$HOME/.kube/capstone-02/eks.yaml"
 export CAP02_APPROVED_CLUSTER=myapp-eks-cluster
-ansible-playbook --syntax-check deploy.yml
-# Operator approval needed before actual mutation:
-ansible-playbook deploy.yml
+aws eks update-kubeconfig \
+  --name myapp-eks-cluster --region eu-north-1 \
+  --profile "$AWS_PROFILE" \
+  --alias myapp-eks-cluster \
+  --user-alias capstone-02-aws
+chmod 600 "$KUBECONFIG"
+"$HOME/.local/bin/kubectl-1.35" --context myapp-eks-cluster get nodes
 ```
 
-The image is deliberately a placeholder to prevent accidental deployment with mutable `latest`. An image digest must be chosen/verified with the expected architecture. `vars.yml` is environment specific: avoid storing credentials in it.
+The published Ansible safety guard checks the context name and the operator approval environment variable. For a stronger production design, additionally verify the actual cluster ARN, AWS account and expected endpoint before mutation.
 
-## 3 — Runtime verification
-
-```bash
-export AWS_PROFILE=YOUR_APPROVED_PROFILE
-export KUBECONFIG="$HOME/.kube/capstone02"
-export CAP02_APPROVED_CLUSTER=myapp-eks-cluster
-bash scripts/verify.sh
-kubectl -n my-app port-forward svc/nginx-service 18080:80
-# In another terminal: curl -fsS http://127.0.0.1:18080/
-```
-
-## 4 — Completion criteria
-
-- [x] Source implementation integrated into a dedicated project layout
-- [x] Terraform EKS, VPC and managed node definitions present
-- [x] Ansible namespace and application deployment defined
-- [x] README, security/cost notes and submission answers written
-- [x] Terraform initialization, formatting and validation passed locally (28 October 2026); plan remains pending
-- [x] Ansible syntax check passed locally with Python 3.14.8 and Ansible Core 2.21.5 (28 October 2026); executable resolution still requires explicit virtualenv verification
-- [ ] Terraform plan reviewed in approved account
-- [ ] Terraform EKS provisioning actually completed (only if authorized and budgeted)
-- [ ] Ansible playbook task recap shows success
-- [ ] Namespace, Pod readiness, Service and HTTP response validated
-- [ ] Evidence and cleanup plan recorded
-
-## Operational notes
-
-- Terraform creates billable cloud resources. It is **not** tied to the existing Capstone 01 cluster.
-- Ansible tasks are declarative/idempotent and do not use global SSH host-key bypass.
-- Kubernetes public access is narrowed to explicitly configured source CIDRs, but cluster-creator administration is still enabled for laboratory bootstrap.
-- This example uses nginx with probes and resource bounds but is **not fully production hardened**: the stock Nginx container may need a custom unprivileged image for non-root/root-filesystem lockdown.
-- Dependency versions and runtime compatibility must be checked against the actual Terraform/Ansible/Kubernetes tools before execution.
-
-**Bootcamp submission:** [what I built, what I learned, and repository URL](docs/bootcamp-submission.md).
-
-
-## Ansible controller compatibility (macOS, October 2026)
-
-Use Python **3.14** with `ansible-core>=2.21,<2.22`. Python 3.15 is not supported by Ansible Core 2.21, and Core 2.19 supports only Python 3.11–3.13 on the control node. Using Python 3.15 with Core 2.19 can fail at startup with `AttributeError: module 'dataclasses' has no attribute '_is_type'`.
-
-From `ansible/`:
+### 3. Deploy Nginx declaratively
 
 ```bash
-deactivate 2>/dev/null || true
-command -v python3.14 || brew install python@3.14
-rm -rf .venv
-python3.14 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install "ansible-core>=2.21,<2.22" -r requirements.txt
-ansible-galaxy collection install -r requirements.yml
-python --version
-ansible-playbook --version
+cd ../ansible
+# Install project dependencies according to requirements.txt and requirements.yml.
+test -f vars.yml || cp vars.example.yml vars.yml
+# Set nginx_image to the verified digest above in ignored local vars.yml.
 ansible-playbook -i localhost, --syntax-check deploy.yml
+ansible-playbook -i localhost, deploy.yml
 ```
 
-**Note:** These commands recreate only the ignored local virtual environment. The existing local `vars.yml` must use `k8s_namespace: my-app`. Syntax checking does not deploy anything to AWS or Kubernetes.
+`vars.yml` must use `k8s_namespace: my-app`, `cluster_name: myapp-eks-cluster` and the approved immutable image digest. The manifest uses resource requests/limits, liveness/readiness probes, a RuntimeDefault seccomp profile and disabled service account token automount. This lab manifest is **not** a complete production security baseline.
+
+### 4. Validate runtime and idempotency
+
+```bash
+KUBECTL="$HOME/.local/bin/kubectl-1.35"
+"$KUBECTL" --context myapp-eks-cluster -n my-app get deployments,pods,services
+"$KUBECTL" --context myapp-eks-cluster -n my-app rollout status deployment/nginx-deployment --timeout=180s
+# Terminal 1:
+"$KUBECTL" --context myapp-eks-cluster -n my-app port-forward svc/nginx-service 18080:80
+# Terminal 2:
+curl -fsSI http://127.0.0.1:18080/
+# Rerun the unchanged Ansible playbook: changed=0 is expected.
+```
+
+## Troubleshooting and engineering decisions
+
+1. **VPC regional quota exceeded (5/5):** Initial Terraform apply partially created 11 IAM/KMS/log resources but could not create the VPC. Inspected account resources and their ownership, requested a quota of 6, preserved remote state and resumed with a refreshed plan. **No unrelated VPC was deleted.**
+2. **Transient DNS resolution failure:** A Terraform drift check failed because the local Mac could not resolve the AWS EC2 API hostname. Rechecked DNS, HTTPS and the AWS CLI; after connectivity recovered, Terraform reported no drift.
+3. **kubectl version skew:** The Mac had a v1.37 client against an EKS v1.35 server. Installed checksum-verified `kubectl` v1.35.9 alongside the existing executable.
+4. **Kubernetes target safety:** Ansible context validation expected `myapp-eks-cluster`, while the initial isolated kubeconfig alias differed. Corrected the alias in the isolated file; verified AWS identity and node readiness.
+5. **Invalid container image reference:** An early attempt accidentally used the literal example digest `YOUR_VERIFIED_DIGEST`, creating `InvalidImageName` in an old ReplicaSet.
+6. **CPU architecture mismatch:** The next digest selected an `s390x` manifest, causing `exec /docker-entrypoint.sh: exec format error` and `CrashLoopBackOff`. Examined Pod events, container logs and OCI image-index platforms; selected and verified the `linux/amd64` manifest instead.
+7. **Ansible repeatability:** An unchanged second deployment showed `changed=0`, demonstrating idempotent reconciliation of the intended Kubernetes resources.
+
+## Security, costs and teardown
+
+- Dedicated VPC and Terraform remote state separate this capstone from Capstone 01.
+- EKS public API access was restricted to the approved operator `/32` source at the time of deployment; the location/IP may change. Private endpoint access is enabled.
+- EKS audit/API/authenticator logs, KMS encryption and node IMDSv2 requirement were configured.
+- Cluster-wide administrator access for the lab operator, unrestricted node egress and a standard Nginx container remain hardening opportunities; they are not proposed as production defaults.
+- EKS control-plane, EC2 worker, NAT gateway, public IPv4, KMS and monitoring-related charges can accrue while the lab remains active.
+- **Teardown is not yet evidenced.** Before destroying anything, review a destroy plan from `terraform/`, confirm the AWS account, backend key and Capstone 02-only resource addresses, and obtain explicit approval. Keep the separately managed backend and all Capstone 01 resources. Record cleanup evidence afterwards.
+
+## Bootcamp submission
+
+See [Capstone 02 submission questions, answers and detailed learning outcomes](docs/bootcamp-submission.md).
+
+## Source attribution
+
+- [Original Terraform EKS learning branch](https://github.com/asambataiden/twn-devops-bootcamp-12-terraform-terraform-learn/tree/feature/project-14-ansible-eks-k8s-deploy-to-eks-with-terraform)
+- [Original Ansible Kubernetes learning branch](https://github.com/asambataiden/twn-devops-bootcamp-15-ansible-deploy-node-app/tree/feature/project-14-ansible-inventory-deploy-to-eks-k8s)
+
+This repository documents the independently verified consolidated Capstone 02 deployment on 28 October 2026.

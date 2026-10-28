@@ -98,8 +98,8 @@ data "aws_iam_policy_document" "tls_only" {
 }
 
 resource "aws_s3_bucket_policy" "tls_only" {
-  bucket = aws_s3_bucket.state.id
-  policy = data.aws_iam_policy_document.tls_only.json
+  bucket     = aws_s3_bucket.state.id
+  policy     = data.aws_iam_policy_document.tls_only.json
   depends_on = [aws_s3_bucket_public_access_block.state]
 }
 

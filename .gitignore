@@ -19,3 +19,7 @@ kubeconfig*
 __pycache__/
 **/terraform.tfvars
 ansible/vars.yml
+
+# JetBrains / IntelliJ IDEA workspace files
+.idea/
+*.iml

@@ -60,6 +60,8 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ansible-galaxy collection install -r requirements.yml
 cp vars.example.yml vars.yml
+# Ensure vars.yml uses k8s_namespace (not reserved 'namespace').
+# Use the ansible-playbook executable from the intended Python environment.
 # Pin the Nginx image to a reviewed image@sha256 digest and edit vars.yml
 export KUBECONFIG="$HOME/.kube/capstone02"
 export CAP02_APPROVED_CLUSTER=myapp-eks-cluster
@@ -87,7 +89,8 @@ kubectl -n my-app port-forward svc/nginx-service 18080:80
 - [x] Terraform EKS, VPC and managed node definitions present
 - [x] Ansible namespace and application deployment defined
 - [x] README, security/cost notes and submission answers written
-- [ ] Terraform validate/plan executed in an approved local environment
+- [x] Terraform initialization, formatting and validation passed locally (28 October 2026); plan remains pending
+- [ ] Terraform plan reviewed in approved account
 - [ ] Terraform EKS provisioning actually completed (only if authorized and budgeted)
 - [ ] Ansible playbook task recap shows success
 - [ ] Namespace, Pod readiness, Service and HTTP response validated

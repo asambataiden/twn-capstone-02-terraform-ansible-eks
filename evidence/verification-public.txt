@@ -1,0 +1,16 @@
+# Capstone 02 — Runtime Verification
+Date: 2026-10-28
+AWS Region: eu-north-1
+Cluster: myapp-eks-cluster
+
+NAME                                         STATUS   ROLES    AGE     VERSION
+ip-10-42-22-40.eu-north-1.compute.internal   Ready    <none>   6h30m   v1.35.9-eks-577a51e
+ip-10-42-6-117.eu-north-1.compute.internal   Ready    <none>   6h30m   v1.35.9-eks-577a51e
+NAME                               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/nginx-deployment   1/1     1            1           45m
+
+NAME                                    READY   STATUS    RESTARTS   AGE
+pod/nginx-deployment-5c47df7c68-fdr9w   1/1     Running   0          12m
+
+NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service/nginx-service   ClusterIP   172.20.215.251   <none>        80/TCP    45m

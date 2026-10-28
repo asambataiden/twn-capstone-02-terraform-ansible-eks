@@ -1,4 +1,4 @@
-namespace: my-app
+k8s_namespace: my-app
 cluster_name: myapp-eks-cluster
 aws_region: eu-north-1
 # Images: pin a vetted immutable digest for real deployment. This example requires operator input.

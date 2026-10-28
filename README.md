@@ -90,6 +90,7 @@ kubectl -n my-app port-forward svc/nginx-service 18080:80
 - [x] Ansible namespace and application deployment defined
 - [x] README, security/cost notes and submission answers written
 - [x] Terraform initialization, formatting and validation passed locally (28 October 2026); plan remains pending
+- [x] Ansible syntax check passed locally with Python 3.14.8 and Ansible Core 2.21.5 (28 October 2026); executable resolution still requires explicit virtualenv verification
 - [ ] Terraform plan reviewed in approved account
 - [ ] Terraform EKS provisioning actually completed (only if authorized and budgeted)
 - [ ] Ansible playbook task recap shows success

@@ -52,3 +52,15 @@ The primary Terraform root has already passed `terraform validate` locally, as h
 ## Explicitly deferred as outside this learning assignment
 
 Full multi-account landing zone, GitOps, Vault, service mesh, organization-wide policy and multi-environment HA clusters. These belong in a separate platform project.
+
+## Verified progress — 28 October 2026
+
+- Bootstrap applied: six AWS S3 resources created, zero changed and zero destroyed.
+- Bootstrap follow-up Terraform plan: no changes.
+- S3 bucket versioning enabled; AES256 default encryption, four public-access safeguards, HTTPS-only deny policy verified.
+- Main Terraform root initialized successfully with the dedicated S3 backend and native locking configured.
+- Main Terraform formatting and validation passed; S3 bucket access verified in eu-north-1.
+- Main root has no Terraform state yet because EKS resources have not been created.
+- Pending: secure external backup of bootstrap local state, commit/review active backend.tf, Terraform plan and cost/security review.
+
+These are operator-provided CLI observations. Do not interpret them as evidence of a deployed EKS cluster.

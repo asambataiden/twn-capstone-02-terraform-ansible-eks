@@ -12,10 +12,10 @@ This short summary provides a reviewer entry point; the main README and linked p
 
 ## Reviewer navigation
 
-- [`README.md`](../../README.md)
-- [`docs/bootcamp-submission.md`](../../docs/bootcamp-submission.md)
-- [`docs/terraform-state-and-deployment.md`](../../docs/terraform-state-and-deployment.md)
-- [`evidence/cleanup-public.md`](../../evidence/cleanup-public.md)
+- [`README.md`](../README.md)
+- [`docs/bootcamp-submission.md`](../docs/bootcamp-submission.md)
+- [`docs/terraform-state-and-deployment.md`](../docs/terraform-state-and-deployment.md)
+- [`evidence/cleanup-public.md`](../evidence/cleanup-public.md)
 
 ## Verification qualification
 

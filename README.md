@@ -1,7 +1,7 @@
 # Capstone 02 — Automate Kubernetes Deployment with Terraform & Ansible
 
 **TechWorld with Nana · AI-Enhanced DevOps Bootcamp · Capstone 02**
-**Implementation verified:** 28 October 2026 · **Status:** End-to-end deployment and repeatability verified; teardown still pending.
+**Implementation verified:** 28 October 2026 · **Final status:** Deployment, repeatability and controlled teardown completed and evidenced on 28 October 2026.
 
 > This project is a portfolio consolidation and security-focused extension of earlier course exercises. The live validation below comes from a new, dedicated EKS deployment; it does not claim that the original course branches were independently redeployed.
 
@@ -158,7 +158,7 @@ curl -fsSI http://127.0.0.1:18080/
 - EKS audit/API/authenticator logs, KMS encryption and node IMDSv2 requirement were configured.
 - Cluster-wide administrator access for the lab operator, unrestricted node egress and a standard Nginx container remain hardening opportunities; they are not proposed as production defaults.
 - EKS control-plane, EC2 worker, NAT gateway, public IPv4, KMS and monitoring-related charges can accrue while the lab remains active.
-- **Teardown is not yet evidenced.** Before destroying anything, review a destroy plan from `terraform/`, confirm the AWS account, backend key and Capstone 02-only resource addresses, and obtain explicit approval. Keep the separately managed backend and all Capstone 01 resources. Record cleanup evidence afterwards.
+- **Teardown completed and evidenced:** The scoped cleanup destroyed 58 Terraform-managed resources, with final verification detailed below. For any future reproduction, review a destroy plan from `terraform/`, confirm the AWS account, backend key and Capstone 02-only resource addresses, and obtain explicit approval. Keep the separately managed backend and all Capstone 01 resources.
 
 ## Bootcamp submission
 
